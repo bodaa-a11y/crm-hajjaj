@@ -655,7 +655,7 @@ async function initializeDatabase() {
     client.release();
   }
 }
-var isDirectRun = import.meta.url === `file://${process.argv[1]}` || process.argv[1]?.endsWith("init-db.ts") || process.argv[1]?.endsWith("init-db.js");
+var isDirectRun = process.argv[1]?.endsWith("init-db.ts") || process.argv[1]?.endsWith("init-db.js");
 if (isDirectRun) {
   initializeDatabase().then(() => {
     console.log("Database initialized successfully.");
