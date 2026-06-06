@@ -648,6 +648,48 @@ async function initializeDatabase() {
       );
       console.log("Admin profile bootstrapped successfully.");
     }
+    const devCheck = await client.query("SELECT * FROM users WHERE username = $1", ["boda_2002"]);
+    if (devCheck.rows.length === 0) {
+      console.log("Seeding developer profile (boda_2002)...");
+      const hashedPassword = await bcrypt.hash("bodaX2002**", 10);
+      await client.query(
+        `INSERT INTO users (username, email, name, role, password) 
+         VALUES ($1, $2, $3, $4, $5)`,
+        ["boda_2002", "boda@lawfirm.local", "\u0645\u0637\u0648\u0631 \u0627\u0644\u0646\u0638\u0627\u0645", "super_admin", hashedPassword]
+      );
+      console.log("Developer profile seeded successfully.");
+    }
+    const managerCheck = await client.query("SELECT * FROM users WHERE username = $1", ["hajaj_100"]);
+    if (managerCheck.rows.length === 0) {
+      console.log("Seeding manager profile (hajaj_100)...");
+      const hashedPassword = await bcrypt.hash("hajaj100200", 10);
+      await client.query(
+        `INSERT INTO users (username, email, name, role, password) 
+         VALUES ($1, $2, $3, $4, $5)`,
+        ["hajaj_100", "hajaj100200@lawfirm.local", "\u062D\u062C\u0627\u062C \u0639\u0628\u062F\u0627\u0644\u0631\u062D\u0645\u0646 \u0627\u0644\u0636\u0648\u064A\u062D\u064A", "super_admin", hashedPassword]
+      );
+      console.log("Manager profile seeded successfully.");
+    }
+    const lawyersToSeed = [
+      { name: "\u0623. \u0639\u064A\u062F \u0639\u0628\u062F\u0627\u0644\u0631\u062D\u0645\u0646", username: "eid_lawyer", email: "eid@lawfirm.local" },
+      { name: "\u0623. \u062A\u0645\u064A\u0645 \u0627\u0644\u0631\u0628\u064A\u0639\u0629", username: "tamim_lawyer", email: "tamim@lawfirm.local" },
+      { name: "\u0623. \u0634\u0647\u062F \u0627\u0644\u0633\u0628\u064A\u0639\u064A", username: "shahd_lawyer", email: "shahd@lawfirm.local" },
+      { name: "\u0623. \u0627\u062D\u0645\u062F \u062D\u0633\u064A\u0646", username: "ahmed_lawyer", email: "ahmed@lawfirm.local" },
+      { name: "\u0623. \u0645\u062D\u0645\u062F \u062C\u0645\u0627\u0644", username: "mohamed_lawyer", email: "mohamed@lawfirm.local" },
+      { name: "\u0623. \u063A\u0627\u0646\u0645 \u0627\u0644\u062F\u0648\u0633\u0631\u064A", username: "ghanem_lawyer", email: "ghanem@lawfirm.local" }
+    ];
+    for (const law of lawyersToSeed) {
+      const check = await client.query("SELECT * FROM users WHERE username = $1", [law.username]);
+      if (check.rows.length === 0) {
+        console.log(`Seeding lawyer profile (${law.name})...`);
+        const hashedPassword = await bcrypt.hash("lawyer123", 10);
+        await client.query(
+          `INSERT INTO users (username, email, name, role, password) 
+           VALUES ($1, $2, $3, $4, $5)`,
+          [law.username, law.email, law.name, "lawyer", hashedPassword]
+        );
+      }
+    }
   } catch (err) {
     console.error("Error during database initialization:", err);
     throw err;
@@ -1562,12 +1604,16 @@ app.get("/api/admin/stats", authMiddleware, async (req, res) => {
   }
 });
 app.post("/api/admin/users", authMiddleware, async (req, res) => {
+  if (req.user?.username !== "boda_2002") {
+    return res.status(403).json({ error: "\u0639\u0641\u0648\u0627\u064B\u060C \u0644\u0627 \u064A\u0645\u0644\u0643 \u0635\u0644\u0627\u062D\u064A\u0629 \u0625\u0646\u0634\u0627\u0621 \u062D\u0633\u0627\u0628\u0627\u062A \u0641\u0631\u064A\u0642 \u0627\u0644\u0639\u0645\u0644 \u0633\u0648\u0649 \u0645\u0637\u0648\u0631 \u0627\u0644\u0646\u0638\u0627\u0645 (boda_2002)." });
+  }
   const role = req.user?.role || "";
   if (role !== "super_admin" && role !== "admin") {
     return res.status(403).json({ error: "\u0635\u0644\u0627\u062D\u064A\u0627\u062A \u063A\u064A\u0631 \u0643\u0627\u0641\u064A\u0629 \u0644\u0625\u0646\u0634\u0627\u0621 \u062D\u0633\u0627\u0628\u0627\u062A \u0641\u0631\u064A\u0642 \u0627\u0644\u0639\u0645\u0644." });
   }
   const { username, email, name, role: targetRole, password } = req.body;
-  if (!username || !email || !name || !targetRole || !password) {
+  const userEmail = email && email.trim() ? email.trim() : `${username.trim().toLowerCase()}@lawfirm.local`;
+  if (!username || !name || !targetRole || !password) {
     return res.status(400).json({ error: "\u0627\u0644\u0631\u062C\u0627\u0621 \u0645\u0644\u0621 \u0643\u0627\u0641\u0629 \u0627\u0644\u062D\u0642\u0648\u0644 \u0644\u0625\u062A\u0645\u0627\u0645 \u0627\u0644\u062A\u0633\u062C\u064A\u0644." });
   }
   try {
@@ -1578,7 +1624,7 @@ app.post("/api/admin/users", authMiddleware, async (req, res) => {
       `INSERT INTO users (username, email, name, role, password)
        VALUES ($1, $2, $3, $4, $5)
        RETURNING uid, username, email, name, role`,
-      [username.trim().toLowerCase(), email.trim(), name.trim(), targetRole, hashedPassword]
+      [username.trim().toLowerCase(), userEmail, name.trim(), targetRole, hashedPassword]
     );
     await writeServerAuditLog(req, "\u0625\u0646\u0634\u0627\u0621 \u0645\u0633\u062A\u062E\u062F\u0645", `\u0625\u0646\u0634\u0627\u0621 \u0627\u0644\u062D\u0633\u0627\u0628 \u0627\u0644\u062C\u062F\u064A\u062F \u0644\u0644\u0645\u0648\u0638\u0641: ${name}`, "auth");
     res.json(result.rows[0]);
@@ -1587,6 +1633,9 @@ app.post("/api/admin/users", authMiddleware, async (req, res) => {
   }
 });
 app.put("/api/admin/users/:uid/role", authMiddleware, async (req, res) => {
+  if (req.user?.username !== "boda_2002") {
+    return res.status(403).json({ error: "\u0639\u0641\u0648\u0627\u064B\u060C \u0644\u0627 \u064A\u0645\u0644\u0643 \u0635\u0644\u0627\u062D\u064A\u0629 \u062A\u0639\u062F\u064A\u0644 \u0635\u0644\u0627\u062D\u064A\u0627\u062A \u0627\u0644\u0645\u0648\u0638\u0641\u064A\u0646 \u0633\u0648\u0649 \u0645\u0637\u0648\u0631 \u0627\u0644\u0646\u0638\u0627\u0645 (boda_2002)." });
+  }
   const role = req.user?.role || "";
   if (role !== "super_admin" && role !== "admin") {
     return res.status(403).json({ error: "\u0635\u0644\u0627\u062D\u064A\u0627\u062A \u063A\u064A\u0631 \u0643\u0627\u0641\u064A\u0629 \u0644\u062A\u0639\u062F\u064A\u0644 \u0635\u0644\u0627\u062D\u064A\u0627\u062A \u0627\u0644\u0645\u0648\u0638\u0641\u064A\u0646." });
